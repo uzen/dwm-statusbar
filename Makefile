@@ -2,12 +2,7 @@ TARGET = statusbar
 SRC = ${wildcard *.c}
 OBJ = ${SRC:.c=.o}
 HDR = ${wildcard *.h}
-ERR = $(shell which clang >/dev/null; echo $$?)
-ifeq "$(ERR)" "0"
-     CC = clang
-else
-     CC = gcc
-endif
+CC = gcc
 
 REVCNT = $(shell git rev-list --count master 2>/dev/null)
 REVHASH = $(shell git log -1 --format="%h" 2>/dev/null)
@@ -18,7 +13,7 @@ else
 endif
 
 CFLAGS = -Wall
-LFLAGS =
+LFLAGS = -lX11
 INSTALL = install
 INSTALL_ARGS = -o root -g root -m 755
 INSTALL_DIR = /usr/local/bin/
@@ -26,10 +21,6 @@ INSTALL_DIR = /usr/local/bin/
 ifeq (${CC}, $(filter ${CC}, cc gcc clang))
 CFLAGS += -std=c99 -pedantic
 endif
-
-# autoconfiguration
-BATPATH=`find /sys -name BAT0 -print0 -quit`
-LNKPATH=`find /sys/class/net/wlan0/ -name operstate -print0 -quit`
 
 all: debug
 
