@@ -21,13 +21,13 @@
 #define DTBUFSZ   20
 #define STRSZ     64
 
-static void open_display(void)          __attribute__ ((unused));
+static void open_display()              __attribute__ ((unused));
 static void close_display()             __attribute__ ((unused));
 static void set_status(char *str);
 static void get_datetime(char *dstbuf);
 static void get_load_average(char *dstla);
 
-static Display *dpy;
+static Display *dpy                     __attribute__ ((unused));
 
 int main(int argc, char **argv)
 {
@@ -64,17 +64,21 @@ int main(int argc, char **argv)
     return 0;
 }
 
-static void open_display(void)
+static void open_display()
 {
+#ifndef DEBUG
     if (!(dpy = XOpenDisplay(NULL)))
         exit(1);
+#endif
     signal(SIGINT, close_display);
     signal(SIGTERM, close_display);
 }
 
-static void close_display(void)
+static void close_display()
 {
+#ifndef DEBUG
     XCloseDisplay(dpy);
+#endif
     exit(0);
 }
 
