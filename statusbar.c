@@ -27,7 +27,7 @@ static void set_status(char *str);
 static void get_datetime(char *dstbuf);
 static void get_load_average(char *dstla);
 
-static Display *dpy;
+static Display *dpy                     __attribute__ ((unused));
 
 int main(int argc, char **argv)
 {
@@ -66,15 +66,19 @@ int main(int argc, char **argv)
 
 static void open_display(void)
 {
+#ifndef DEBUG
     if (!(dpy = XOpenDisplay(NULL)))
         exit(1);
+#endif
     signal(SIGINT, close_display);
     signal(SIGTERM, close_display);
 }
 
 static void close_display(void)
 {
+#ifndef DEBUG
     XCloseDisplay(dpy);
+#endif
     exit(0);
 }
 

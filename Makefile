@@ -13,7 +13,7 @@ else
 endif
 
 CFLAGS = -Wall
-LFLAGS = -lX11
+LFLAGS =
 INSTALL = install
 INSTALL_ARGS = -o root -g root -m 755
 INSTALL_DIR = /usr/local/bin/
@@ -25,7 +25,7 @@ endif
 all: debug
 
 debug: CFLAGS += -g -DDEBUG
-debug: LFLAGS += -g
+debug: LFLAGS += -g -lX11
 debug: build
 
 release: CFLAGS += -O3
@@ -50,7 +50,7 @@ install: release
 	@echo "DONE"
 
 ${TARGET}: build_host.h ${OBJ}
-	${CC} ${LFLAGS} -o $@ ${OBJ}
+	${CC} -o $@ ${OBJ} ${LFLAGS}
 
 %.o: %.c
 	${CC} ${CFLAGS} -c $?
