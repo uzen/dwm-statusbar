@@ -6,6 +6,7 @@
 #include "build_host.h"
 
 #define _BSD_SOURCE
+#define _XOPEN_SOURCE 700
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,22 +16,25 @@
 #include <signal.h>
 #include <ctype.h>
 #include <X11/Xlib.h>
+#include <alsa/asoundlib.h>
 
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
 #define DTBUFSZ   20
 #define STRSZ     64
 
-static void open_display(void)          __attribute__ ((unused));
+static void open_display()              __attribute__ ((unused));
 static void close_display()             __attribute__ ((unused));
 static void set_status(char *str);
 static void get_datetime(char *dstbuf);
 static void get_load_average(char *dstla);
+static int get_vol(void);
 
 static Display *dpy                     __attribute__ ((unused));
 
 int main(int argc, char **argv)
 {
+    int vol = 0;
     char  la[STRSZ] = { 0 };    /* load average   */
     char  dt[STRSZ] = { 0 };    /* date/time      */
     char  stat[STRSZ] = { 0 };  /* full string    */
@@ -51,10 +55,11 @@ int main(int argc, char **argv)
 #endif
 
     while (!sleep(1)) {
+        vol = get_vol();
         get_load_average(la);
         get_datetime(dt);                       /* date/time */
 
-        snprintf(stat, STRSZ, "%s | %s", la, dt);
+        snprintf(stat, STRSZ, "%u | %s | %s", vol, la, dt);
         set_status(stat);
     }
 
@@ -64,7 +69,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-static void open_display(void)
+static void open_display()
 {
 #ifndef DEBUG
     if (!(dpy = XOpenDisplay(NULL)))
@@ -74,7 +79,7 @@ static void open_display(void)
     signal(SIGTERM, close_display);
 }
 
-static void close_display(void)
+static void close_display()
 {
 #ifndef DEBUG
     XCloseDisplay(dpy);
@@ -111,3 +116,27 @@ static void get_datetime(char *dstbuf)
     snprintf(dstbuf, DTBUFSZ, "%s", ctime(&rawtime));
 }
 
+static int get_vol(void)
+{
+    long min, max, volume = 0;
+    snd_mixer_t *handle;
+    snd_mixer_selem_id_t *sid;
+    const char *card = "default";
+    const char *selem_name = "Master";
+
+    snd_mixer_open(&handle, 0);
+    snd_mixer_attach(handle, card);
+    snd_mixer_selem_register(handle, NULL, NULL);
+    snd_mixer_load(handle);
+
+    snd_mixer_selem_id_alloca(&sid);
+    snd_mixer_selem_id_set_index(sid, 0);
+    snd_mixer_selem_id_set_name(sid, selem_name);
+    snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+    snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
+    snd_mixer_selem_get_playback_volume(elem, 0, &volume);
+    snd_mixer_close(handle);
+
+    return ((double)volume / max) * 100;
+}
