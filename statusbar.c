@@ -5,7 +5,7 @@
 
 #include "build_host.h"
 
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #define _XOPEN_SOURCE 700
 
 #include <stdio.h>
@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <X11/Xlib.h>
+#include <X11/XKBlib.h>
 #include <alsa/asoundlib.h>
 #include <alsa/control.h>
 
@@ -29,6 +30,7 @@
 #define DTBUFSZ   20
 #define LNKBUFSZ  64
 #define STRSZ     256
+#define LANGBUFSZ 3
 
 /* Available statuses
  *
@@ -47,6 +49,7 @@ static void close_display()             __attribute__ ((unused));
 static void spawn(const char **params)  __attribute__ ((unused));
 static void set_status(char *str);
 static void get_datetime(char *dstbuf);
+static void get_kbd_lang(char *dstbuf);
 static void get_load_average(char *dstla);
 static status_t get_status(void);
 static int read_int(const char *path);
@@ -61,20 +64,16 @@ int main(int argc, char **argv)
     int   vol = 0;
     float bat;                  /* battery status */
     char  lnk[STRSZ] = { 0 };   /* wifi link      */
-    char  la[STRSZ] = { 0 };    /* load average   */
+    //char  la[STRSZ] = { 0 };    /* load average   */
     char  dt[STRSZ] = { 0 };    /* date/time      */
     char  stat[STRSZ] = { 0 };  /* full string    */
+    char  kl[STRSZ] = { 0};  /* keyboard layout   */
     status_t st;                /* battery status */
     /* should be the same order as the enum above (C, D, U, F) */
     char  status[] = { '+', '-', '?', '=' };
 
     if (argc > 1 && strcmp(argv[1], "-v") == 0) {
-        printf("dwm-statusbar v%s"
-#ifdef DEBUG
-               " (debug)"
-#endif
-               " [%s %s]\n\nUsage: %s [-v]\n\n",
-                BUILD_VERSION, BUILD_OS, BUILD_KERNEL, argv[0]);
+        printf("dwm-statusbar \n\nUsage: %s [-v]\n\n", argv[0]);
         exit(0);
     }
 
@@ -84,9 +83,11 @@ int main(int argc, char **argv)
 
     while (!sleep(1)) {
         vol = get_vol();
-        get_load_average(la);
+        //get_load_average(la);
         read_str(LNK_PATH, lnk, LNKBUFSZ);      /* link status */
         get_datetime(dt);                       /* date/time */
+        get_kbd_lang(kl);                      /* keyboard layout */
+
         bat = ((float)read_int(BAT_NOW) /
                read_int(BAT_FULL)) * 100.0f;    /* battery */
         /* battery status (charging/discharging/full/etc) */
@@ -106,8 +107,15 @@ int main(int argc, char **argv)
             } else
                 timer++;
         } else {
-            snprintf(stat, STRSZ, "%s | %d | %s | %c%0.1f%% | %s",
+            /*snprintf(stat, STRSZ, "%s :: %s :: Vol %d :: %s :: %c%0.1f%% :: %s",
+                     kl,
                      la,
+                     vol,
+                     lnk,
+                     status[st],
+                     MIN(bat, 100), dt);*/
+            snprintf(stat, STRSZ, "%s :: V %d :: N %s :: B %c%0.1f%% :: %s",
+                     kl,
                      vol,
                      lnk,
                      status[st],
@@ -175,7 +183,7 @@ static void get_datetime(char *dstbuf)
 {
     time_t rawtime;
     time(&rawtime);
-    snprintf(dstbuf, DTBUFSZ, "%s", ctime(&rawtime));
+    strftime(dstbuf, DTBUFSZ, "%a %b %d %I:%M%P", localtime(&rawtime));
 }
 
 static status_t get_status(void)
@@ -252,3 +260,21 @@ static int get_vol(void)
     return ((double)volume / max) * 100;
 }
 
+static void get_kbd_lang(char *dstbuf)
+{  
+	XkbDescPtr kb;
+   XkbStateRec state;    
+	char* lang = NULL;
+
+	if (!(kb = XkbAllocKeyboard())) return;
+
+	memset(&state, 0, sizeof(state));
+	XkbGetState(dpy, XkbUseCoreKbd, &state);
+	XkbGetNames(dpy, XkbGroupNamesMask, kb);
+
+	lang = XGetAtomName(dpy, kb->names->groups[state.group]);
+	
+	snprintf(dstbuf, LANGBUFSZ, "%s", lang);
+	
+	XkbFreeNames(kb, XkbGroupNamesMask, 1);	
+}
