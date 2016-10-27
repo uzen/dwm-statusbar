@@ -35,6 +35,7 @@ all: debug
 
 debug: CFLAGS += -g -DDEBUG
 debug: LFLAGS += -g
+debug: LFLAGS += -lX11
 debug: build
 
 release: CFLAGS += -O3
